@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>音声センサ値表示</title>
+  </head>
+  <body>
+    <center>
+      <div id="noise_level"><h1>周囲の騒音レベル: 取得中...</h1></div>
+      <div id="sound_value">音声センサの値: 取得中...</div>
+      <button id="play_stop_music_button">再生/停止</button>
+    </center>
+    
+    <script>
+      let soundDataArray = []; //センサの値格納用
+      const quietmusic = new Audio('/static/music/Moonlight.mp3')
+      const normalmusic = new Audio('/static/music/Winter.mp3')
+      const loudmusic = new Audio('/static/music/AriaG.mp3')
+      let currentmusic = null;
+
+      function updateSoundValue(url, element) {
+	  fetch(url)
+	      .then(response => response.text())
+	      .then(sensorData => {
+		  const levelElement = document.getElementById('noise_level');
+		  const target = document.getElementById(element);
+
+		  soundDataArray.push(parseInt(sensorData, 10)); //データを配列に格納
+		  if(soundDataArray.length > 10){
+		      soundDataArray.shift(); //超えた分を削除
+		  }
+
+		  const averageSoundData = soundDataArray.reduce((a, b) => a + b, 0) / soundDataArray.length; //平均計算
+
+	  //騒音レベル区分
+		  let noiseLevel = '低';
+		  if(averageSoundData > 600){
+		      noiseLevel = '高';
+		      choosemusic(loudmusic);
+		  } else if (averageSoundData > 550){
+		      noiseLevel = '中';
+		      choosemusic(normalmusic);
+		  } else {
+		      choosemusic(quietmusic);
+		  }
+		  levelElement.innerHTML = '<h1>周囲の騒音レベル: ' + noiseLevel +'</h1>';
+	  
+		  target.innerText = '音声センサの値: ' + sensorData;
+	      });
+      }
+      function choosemusic(music){
+	  if(currentmusic !== music){
+	      if(currentmusic){
+		  fadeOut(currentmusic);
+	      }
+	      currentmusic = music;
+	      fadeIn(currentmusic);
+	  }
+      }
+
+      function fadeOut(audioElement){
+	  const fadeOutInterval = setInterval(function(){
+	      if(audioElement.volume > 0.1){
+		  audioElement.volume -= 0.1;
+	      } else {
+		  clearInterval(fadeOutInterval);
+		  audioElement.pause();
+		  audioElement.currentTime = 0;
+	      }
+	  }, 100);
+      }
+
+      function fadeIn(audioElement){
+	  audioElement.volume = 0;
+	  audioElement.play();
+	  const fadeInInterval = setInterval(function(){
+	      if(audioElement.volume < 0.9){
+		  audioElement.volume += 0.1;
+	      } else {
+		  clearInterval(fadeInInterval);
+	      }
+	  }, 100);
+      }
+	  
+      
+      function playstopMusic() {
+	  if(currentmusic){
+	      if(currentmusic.paused){
+		  fadeIn(currentmusic);
+	      } else {
+		  fadeOut(currentmusic);
+		  currentmusic.play();
+	      }
+	  }
+      }
+      
+      window.onload = function(){
+	  setInterval(() => {
+	      updateSoundValue('/get_sound_value', 'sound_value');
+	  }, 1000);
+	  document.getElementById('play_stop_music_button').addEventListener('click', playstopmusic);
+      }
+    </script>
+    <center>
+  </body>
+</html>
+
+    
